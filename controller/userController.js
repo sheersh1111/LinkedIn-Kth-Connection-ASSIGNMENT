@@ -3,11 +3,10 @@ const Blog = require("../model/blogModel");
 
 //Register a User
 exports.registerUser = async (req, res, next) => {
-    const { name, email, password } = req.body;
+    const { name, email } = req.body;
     const user = await User.create({
         name,
-        email,
-        password
+        email
     });
     res.status(200).json({
         success: true,
@@ -25,9 +24,9 @@ exports.createBlogComment= async(req,res,next)=>{
     const blog = await Blog.findById(blogId);
     let userf;
     let i=0;
-    for(i=0;i<blog.length;i++){  // checking for already commented users
-        userf=blog[i].comments.user; 
-        friendAdd(user,userf); // passing to function to check if already friend
+    for(i=0;i<blog.comments.length;i++){  // checking for already commented users
+        userf=blog.comments[i].user; 
+       await friendAdd(user,userf); // passing to function to check if already friend
     }                           //if not adding each other in vice-versa list of friends
 
 
@@ -44,11 +43,11 @@ exports.createBlogComment= async(req,res,next)=>{
 
 //checking if already friend , if not ,adding to list
 friendAdd=async(user,userf)=>{
-    const userData=await User.findById(user);
+    let userData=await User.findById(user);
     let i=0;
     let found=false
     for(i=0;i<userData.friends.length;i++){ // traversing throught the friends list of user and finding
-        if(friendList[i]===userf){
+        if(userData.friends[i]===userf){
             found=true
             break
         }
@@ -64,22 +63,28 @@ friendAdd=async(user,userf)=>{
 
 //finding kth level friend list of a particular user
 exports.klevelfriends=async(req,res)=>{       // it is a typical BFS Algorithm
-    const {userId,k}=req.query;
-
+    const {userId,k}=req.params;
     const startUser = await User.findById(userId).populate('friends');
-  const queue = [[startUser, 0]]; // adding user object in queue
-  const visited = new Set([startUser._id]);// also adding it in visited set
-  const kthLevel = [];// list to be returned
+    let queue = []
+  queue.push({user:startUser, level:0}); // adding user object in queue
+  let visited = new Set();// also adding it in visited set
+  let id=startUser._id;
+  console.log(id.toString())
+  visited.add(startUser._id.toString())
+  let kthLevel = [];// list to be returned
 
   while (queue.length) {
-    const [user, level] = queue.shift();//taking out first element of queue
-
-    if (level === k) {
+    console.log(queue.length)
+    const {user, level} = queue.shift();//taking out first element of queue
+    console.log(queue.length)
+    if (level == k) {
+      console.log(level,k)
       kthLevel.push(user._id);    //if reached depth of k adding the element in list
     } else if (level < k) {      // if depth < k going depth+1
       for (const friend of user.friends) {
-        if (!visited.has(friend)) {// checking if user is already present in visited set
-          visited.add(friend);   // if not adding it to it in set
+        if (visited.has(friend._id.toString())===false) {// checking if user is already present in visited set
+          
+          visited.add(friend._id.toString());   // if not adding it to it in set
           const friendWithFriends = await User.findById(friend).populate('friends');
     queue.push({ user: friendWithFriends, level: level + 1 });  // also adding it in queue
         }
